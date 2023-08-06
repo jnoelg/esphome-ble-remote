@@ -1,8 +1,8 @@
 {
   "UsageTableVersion": 1,
-  "UsageTableRevision": 3,
+  "UsageTableRevision": 4,
   "UsageTableSubRevisionInternal": 0,
-  "LastGenerated": "2022-02-28T18:00:40.8462453-08:00",
+  "LastGenerated": "2023-01-05T18:12:54.5267751-08:00",
   "UsagePages": [
     {
       "Kind": "Defined",
@@ -7003,7 +7003,21 @@
           "Id": 165,
           "Name": "Transducer Switches",
           "Kinds": [
-            "Sel"
+            "CL"
+          ]
+        },
+        {
+          "Id": 166,
+          "Name": "Transducer Index Selector",
+          "Kinds": [
+            "DV"
+          ]
+        },
+        {
+          "Id": 176,
+          "Name": "Button Press Threshold",
+          "Kinds": [
+            "DV"
           ]
         }
       ],
@@ -8086,6 +8100,13 @@
           ]
         },
         {
+          "Id": 169,
+          "Name": "System Microphone Mute",
+          "Kinds": [
+            "OOC"
+          ]
+        },
+        {
           "Id": 176,
           "Name": "System Display Invert",
           "Kinds": [
@@ -8910,7 +8931,7 @@
         },
         {
           "Id": 32,
-          "Name": "Keyboard 3 And Hash",
+          "Name": "Keyboard 3 and Hash",
           "Kinds": [
             "Sel"
           ]
@@ -9029,14 +9050,14 @@
         },
         {
           "Id": 49,
-          "Name": "Keyboard Pipe and Slash",
+          "Name": "Keyboard Backslash and Pipe",
           "Kinds": [
             "Sel"
           ]
         },
         {
           "Id": 50,
-          "Name": "Keyboard Non-US",
+          "Name": "Keyboard Non-US Hash and Tilde",
           "Kinds": [
             "Sel"
           ]
@@ -9064,21 +9085,21 @@
         },
         {
           "Id": 54,
-          "Name": "Keyboard Comma",
+          "Name": "Keyboard Comma and LessThan",
           "Kinds": [
             "Sel"
           ]
         },
         {
           "Id": 55,
-          "Name": "Keyboard Period",
+          "Name": "Keyboard Period and GreaterThan",
           "Kinds": [
             "Sel"
           ]
         },
         {
           "Id": 56,
-          "Name": "Keyboard QuestionMark",
+          "Name": "Keyboard ForwardSlash and QuestionMark",
           "Kinds": [
             "Sel"
           ]
@@ -9274,7 +9295,7 @@
         },
         {
           "Id": 84,
-          "Name": "Keypad Forward Slash",
+          "Name": "Keypad ForwardSlash",
           "Kinds": [
             "Sel"
           ]
@@ -9288,7 +9309,7 @@
         },
         {
           "Id": 86,
-          "Name": "Keyboard Dash",
+          "Name": "Keypad Dash",
           "Kinds": [
             "Sel"
           ]
@@ -9379,14 +9400,14 @@
         },
         {
           "Id": 99,
-          "Name": "Keypad Period",
+          "Name": "Keypad Period and Delete",
           "Kinds": [
             "Sel"
           ]
         },
         {
           "Id": 100,
-          "Name": "Keyboard Non-US Slash Bar",
+          "Name": "Keyboard Non-US Backslash and Pipe",
           "Kinds": [
             "Sel"
           ]
@@ -10437,7 +10458,7 @@
         },
         {
           "Id": 31,
-          "Name": "Head Set",
+          "Name": "Headset",
           "Kinds": [
             "OOC"
           ]
@@ -10825,6 +10846,13 @@
           "Name": "LED Intensity",
           "Kinds": [
             "DV"
+          ]
+        },
+        {
+          "Id": 87,
+          "Name": "System Microphone Mute",
+          "Kinds": [
+            "OOC"
           ]
         },
         {
@@ -18283,6 +18311,84 @@
           "Name": "Rear Brake",
           "Kinds": [
             "DV"
+          ]
+        }
+      ],
+      "UsageIdGenerator": null
+    },
+    {
+      "Kind": "Defined",
+      "Id": 17,
+      "Name": "SoC",
+      "UsageIds": [
+        {
+          "Id": 1,
+          "Name": "SocControl",
+          "Kinds": [
+            "CA"
+          ]
+        },
+        {
+          "Id": 2,
+          "Name": "FirmwareTransfer",
+          "Kinds": [
+            "CL"
+          ]
+        },
+        {
+          "Id": 3,
+          "Name": "FirmwareFileId",
+          "Kinds": [
+            "DV"
+          ]
+        },
+        {
+          "Id": 4,
+          "Name": "FileOffsetInBytes",
+          "Kinds": [
+            "DV"
+          ]
+        },
+        {
+          "Id": 5,
+          "Name": "FileTransferSizeMaxInBytes",
+          "Kinds": [
+            "DV"
+          ]
+        },
+        {
+          "Id": 6,
+          "Name": "FilePayload",
+          "Kinds": [
+            "DV"
+          ]
+        },
+        {
+          "Id": 7,
+          "Name": "FilePayloadSizeInBytes",
+          "Kinds": [
+            "DV"
+          ]
+        },
+        {
+          "Id": 8,
+          "Name": "FilePayloadContainsLastBytes",
+          "Kinds": [
+            "DF"
+          ]
+        },
+        {
+          "Id": 9,
+          "Name": "FileTransferStop",
+          "Kinds": [
+            "DF"
+          ]
+        },
+        {
+          "Id": 10,
+          "Name": "FileTransferTillEnd",
+          "Kinds": [
+            "DF"
           ]
         }
       ],

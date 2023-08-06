@@ -28,7 +28,7 @@
 #define USAGE_BATTERY_OK "Battery OK"
 #define USAGE_BATTERY_LOW "Battery Low"
 #define USAGE_SPEAKER "Speaker"
-#define USAGE_HEAD_SET "Head Set"
+#define USAGE_HEADSET "Headset"
 #define USAGE_HOLD "Hold"
 #define USAGE_MICROPHONE "Microphone"
 #define USAGE_COVERAGE "Coverage"
@@ -84,6 +84,7 @@
 #define USAGE_BLUE_LED_CHANNEL "Blue LED Channel"
 #define USAGE_GREEN_LED_CHANNEL "Green LED Channel"
 #define USAGE_LED_INTENSITY "LED Intensity"
+#define USAGE_SYSTEM_MICROPHONE_MUTE "System Microphone Mute"
 #define USAGE_PLAYER_INDICATOR "Player Indicator"
 #define USAGE_PLAYER_1 "Player 1"
 #define USAGE_PLAYER_2 "Player 2"
@@ -126,7 +127,7 @@
 	{28, USAGE_BATTERY_OK},\
 	{29, USAGE_BATTERY_LOW},\
 	{30, USAGE_SPEAKER},\
-	{31, USAGE_HEAD_SET},\
+	{31, USAGE_HEADSET},\
 	{32, USAGE_HOLD},\
 	{33, USAGE_MICROPHONE},\
 	{34, USAGE_COVERAGE},\
@@ -182,6 +183,7 @@
 	{84, USAGE_BLUE_LED_CHANNEL},\
 	{85, USAGE_GREEN_LED_CHANNEL},\
 	{86, USAGE_LED_INTENSITY},\
+	{87, USAGE_SYSTEM_MICROPHONE_MUTE},\
 	{96, USAGE_PLAYER_INDICATOR},\
 	{97, USAGE_PLAYER_1},\
 	{98, USAGE_PLAYER_2},\
