@@ -10,10 +10,11 @@ with open("HidUsageTables.json", "r", encoding='utf-8') as hid_usages_file:
     for page in usage_pages:
         page_name : str = page["Name"]
         page_name = re.sub('[^a-zA-Z0-9]+','_',page_name)
-        with open(f"./components/ble_client_hid/hid_usages/generated/{page_name.lower()}.h","w", encoding='utf-8') as header_file:
+        with open(f"./components/ble_client_hid/hid_usages/generated/{page_name.lower()}.h", "w", encoding='utf-8') as header_file:
             usage_page : str = f'#define USAGE_PAGE_{page_name.upper()} {{\"{page["Name"]}\", {{\\\n'
             for usage in page["UsageIds"]:
-                usage_name = usage["Name"]
+                safe_usage_name = usage["Name"].replace(chr(0x2010), '-') # fix ambiguous '-' char
+                usage_name = safe_usage_name.replace('é', 'e') # 'é' is used once, in "Moiré"
                 usage_name = re.sub('[^a-zA-Z0-9]+', '_', usage_name)
                 usage_name = usage_name.upper()
                 usage_kinds : str = ""
@@ -23,7 +24,7 @@ with open("HidUsageTables.json", "r", encoding='utf-8') as hid_usages_file:
                     usage_kinds += ","
 
                 usage_kinds = usage_kinds[:len(usage_kinds)-1]
-                header_file.write(f'#define USAGE_{usage_name} \"{usage["Name"]}\"\n')
+                header_file.write(f'#define USAGE_{usage_name} \"{safe_usage_name}\"\n')
                 usage_page += f'\t{{{usage["Id"]}, USAGE_{usage_name}}},\\\n'
 
             header_file.write("\n\n")
