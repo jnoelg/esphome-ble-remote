@@ -94,6 +94,7 @@ namespace esphome
       virtual std::vector<HIDReportItemValue> parse(uint8_t *hid_report_data) = 0;
       static int32_t parse_input_report_item(uint8_t *report_data, uint16_t bit_offset, uint16_t report_size, HIDLogicalRange logical_range);
       const uint8_t report_size; // in bits
+      void esp_logd_input_report_item();
 
     protected:
       const HIDUsageCollection *usage_collection;
@@ -137,6 +138,7 @@ namespace esphome
       void add_padding(uint8_t padding_size);
       uint8_t get_next_offset();
       std::vector<HIDReportItemValue> parse(uint8_t *hid_report_data);
+      void esp_logd_input_report();
 
     protected:
       std::vector<HIDInputReportItem *> items;

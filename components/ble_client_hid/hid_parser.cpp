@@ -106,15 +106,17 @@ namespace esphome
     {
       if ((item_info & HID_ITEM_SIZE_MASK) == HID_ITEM_SIZE_32)
       {
-        ESP_LOGD(TAG,"Parsing extedned usage: %X, %X", (uint16_t)(data >> 16), (uint16_t)data);
+        ESP_LOGD(TAG,"Parsing extended usage: Page=%X, Usage=%X", (uint16_t)(data >> 16), (uint16_t)data);
         return HIDUsage((uint16_t)data, (uint16_t)(data >> 16));
       }
-      ESP_LOGD(TAG,"Parsing simple usage: %X, %X", usage_page, (uint16_t)data);
+      ESP_LOGD(TAG,"Parsing simple usage: Page=%X, Usage=%X", usage_page, (uint16_t)data);
       return HIDUsage((uint16_t)data, usage_page);
     }
 
     const HIDUsage HIDUsageRange::get_usage(uint16_t index) const
     {
+      ESP_LOGD(TAG, "get usage for index %d with range %d..%d (page %X)", 
+        index, this->usage_min.usage, this->usage_max.usage, this->usage_page);
       if (index > this->usage_max.usage - this->usage_min.usage)
       {
         ESP_LOGW(TAG, "Usage index out of range");
@@ -129,7 +131,7 @@ namespace esphome
       if (index > this->usages.size())
       {
         ESP_LOGW(TAG, "Usage index out of range");
-        return HIDUsage(0,0);;
+        return HIDUsage(0,0);
       }
       return this->usages[index];
     }
@@ -155,12 +157,14 @@ namespace esphome
         {
         case HID_ITEM_TYPE_TAG_PUSH:
         {
-
+          ESP_LOGD(TAG, "Push");
           parser_states.push(state_table);
           break;
         }
+
         case HID_ITEM_TYPE_TAG_POP:
         {
+          ESP_LOGD(TAG, "Pop");
           if (parser_states.size() <= 0)
           {
             ESP_LOGW(TAG,
@@ -182,46 +186,66 @@ namespace esphome
 
         case HID_ITEM_TYPE_TAG_LOGICAL_MINIMUM:
         {
+          ESP_LOGD(TAG, "Logical Minimum (%d)", report_item_data);
           state_table.logical_range.minimum = report_item_data;
           break;
         }
 
         case HID_ITEM_TYPE_TAG_LOGICAL_MAXIMUM:
         {
+          ESP_LOGD(TAG, "Logical Maximum (%d)", report_item_data);
           state_table.logical_range.maximum = report_item_data;
           break;
         }
 
         case HID_ITEM_TYPE_TAG_PHYSICAL_MINIMUM:
+        {
+          ESP_LOGD(TAG, "Physical Minimum (%d)", report_item_data);
           // Ignore for now
           break;
+        }
 
         case HID_ITEM_TYPE_TAG_PHYSICAL_MAXIMUM:
+        {
+          ESP_LOGD(TAG, "Physical Maximum (%d)", report_item_data);
           // Ignore for now
           break;
+        }
+
 
         case HID_ITEM_TYPE_TAG_UNIT_EXPONENT:
+        {
+          ESP_LOGD(TAG, "Unit Exponent (%d)", report_item_data);
           // Ignore for now
           break;
+        }
+
 
         case HID_ITEM_TYPE_TAG_UNIT:
+        {
+          ESP_LOGD(TAG, "Unit (%d)", report_item_data);
           // Ignore for now
           break;
+        }
+
 
         case HID_ITEM_TYPE_TAG_REPORT_SIZE:
         {
+          ESP_LOGD(TAG, "Report Size (%d bits)", report_item_data);
           state_table.report_size = report_item_data;
           break;
         }
 
         case HID_ITEM_TYPE_TAG_REPORT_COUNT:
         {
+          ESP_LOGD(TAG, "Report Count (%d)", report_item_data);
           state_table.report_count = report_item_data;
           break;
         }
 
         case HID_ITEM_TYPE_TAG_REPORT_ID:
         {
+          ESP_LOGD(TAG, "Report ID (%d)", report_item_data);
           if (input_reports.count(report_item_data) == 0)
           {
             input_reports.emplace(report_item_data, new HIDInputReport(report_item_data));
@@ -232,34 +256,42 @@ namespace esphome
 
         case HID_ITEM_TYPE_TAG_USAGE:
         {
+          ESP_LOGD(TAG, "Usage (see next line)");
           usages.push_back(parse_usage(report_item_info, report_item_data, state_table.usage_page));
           break;
         }
 
         case HID_ITEM_TYPE_TAG_USAGE_MINIMUM:
         {
+          ESP_LOGD(TAG, "Usage Minimum (see next line)");
           usage_range.minimum = parse_usage(report_item_info, report_item_data, state_table.usage_page);
           break;
         }
 
         case HID_ITEM_TYPE_TAG_USAGE_MAXIMUM:
         {
+          ESP_LOGD(TAG, "Usage Maximum (see next line)");
           usage_range.maximum = parse_usage(report_item_info, report_item_data, state_table.usage_page);
           break;
         }
 
         case HID_ITEM_TYPE_TAG_COLLECTION:
+        {
+          ESP_LOGD(TAG, "Collection (%d)", report_item_data);
           // Ignore for now
           break;
+        }
 
         case HID_ITEM_TYPE_TAG_END_COLLECTION:
+        {
+          ESP_LOGD(TAG, "End Collection");
           // Ignore for now
           break;
+        }
 
         case HID_ITEM_TYPE_TAG_INPUT:
-
         {
-          ESP_LOGD(TAG, "Found input main item");
+          ESP_LOGD(TAG, "Input (%d) --> KEEP THAT", report_item_data);
           uint16_t item_flags = report_item_data;
 
           if (state_table.report_id == 0)
@@ -300,25 +332,46 @@ namespace esphome
           }
           break;
         }
+
         case HID_ITEM_TYPE_TAG_OUTPUT:
-          // Ignore for now
+        {
+          ESP_LOGD(TAG, "Output (%d)", report_item_data);
+          // what we've been parsing so far is not related to an input
+          // we only keep the state_table.report_id value
+          state_table.report_size = 0;
+          state_table.logical_range = {};
+          state_table.report_count = 0;
+          state_table.usage_page = 0;
           break;
+        }
+
         case HID_ITEM_TYPE_TAG_FEATURE:
+        {
+          ESP_LOGD(TAG, "Feature");
           // Ignore for now
           break;
+        }
 
         default:
           break;
         }
+
         if ((report_item_info & HID_ITEM_TYPE_MASK) == HID_ITEM_TYPE_MAIN)
         {
+          // after an INPUT, OUTPUT
+          ESP_LOGD(TAG, "Clearing previous usages");
           usages.clear();
           usage_range.maximum = HIDUsage(0, 0);
           usage_range.minimum = HIDUsage(0, 0);
         }
       }
+
       HIDReportMap *report_map = new HIDReportMap(input_reports);
       ESP_LOGD(TAG, "Parsed report map with %d input reports", input_reports.size());
+      for (auto &input_report : input_reports)
+      {
+        input_report.second->esp_logd_input_report();
+      }
       return report_map;
     }
 
@@ -336,6 +389,15 @@ namespace esphome
     {
       this->items.push_back(item);
       this->report_size += item->report_size;
+    }
+
+    void HIDInputReport::esp_logd_input_report()
+    {
+        ESP_LOGD(TAG, "Report ID %d (size = %d)", this->report_id, this->report_size);
+        for (auto &report_item : this->items)
+        {
+          report_item->esp_logd_input_report_item();
+        }
     }
 
     std::vector<HIDReportItemValue> HIDReportMap::parse(uint8_t *hid_report_data)
@@ -395,6 +457,16 @@ namespace esphome
         current_bit++;
       }
       return value;
+    }
+
+    void HIDInputReportItem::esp_logd_input_report_item()
+    {
+        ESP_LOGD(TAG, "- Report ID = %d", this->report_id);
+        ESP_LOGD(TAG, "- Report Size = %d", this->report_id);
+        ESP_LOGD(TAG, "- Report Count = %d", this->report_count);
+        ESP_LOGD(TAG, "- Report Offset = %d", this->report_offset);
+        ESP_LOGD(TAG, "- Logical Range = %d..%d", this->logical_range.minimum, this->logical_range.maximum);
+        ESP_LOGD(TAG, "- Usage Collection Page = %d, Usage = %d", this->usage_collection->get_usage(0).page,  this->usage_collection->get_usage(0).usage);
     }
 
     std::string HIDReportItemValue::to_string() const

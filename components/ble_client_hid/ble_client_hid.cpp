@@ -160,7 +160,8 @@ void BLEClientHID::gattc_event_handler(esp_gattc_cb_event_t event,
       break;
     }
     case ESP_GATTC_NOTIFY_EVT: {
-      if (param->notify.conn_id != this->parent()->get_conn_id()) break;
+      if (p_data->notify.conn_id != this->parent()->get_conn_id()) break;
+      if (!p_data->notify.is_notify) break;
       if (p_data->notify.handle == this->battery_handle) {
         uint8_t battery_level = p_data->notify.value[0];
         if(this->battery_sensor == nullptr){
@@ -180,8 +181,9 @@ void BLEClientHID::gattc_event_handler(esp_gattc_cb_event_t event,
 }
 
 void BLEClientHID::send_input_report_event(esp_ble_gattc_cb_param_t *p_data){
-  ESP_LOGD(TAG, "Received HID input report from handle %d",
-                 p_data->notify.handle);
+  ESP_LOGD(TAG, "Received HID input report from handle %d (length=%d)",
+                 p_data->notify.handle, p_data->notify.value_len);
+  // esp_log_buffer_hex(TAG, p_data->notify.value, p_data->notify.value_len);
   uint8_t *data = new uint8_t[p_data->notify.value_len + 1];
   memcpy(data + 1, p_data->notify.value, p_data->notify.value_len);
   data[0] = this->handle_report_id[p_data->notify.handle];
