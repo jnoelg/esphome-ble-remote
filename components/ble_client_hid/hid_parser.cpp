@@ -467,7 +467,7 @@ namespace esphome
     void HIDInputReportItem::esp_logd_input_report_item()
     {
         ESP_LOGD(TAG, "- Report ID = %d", this->report_id);
-        ESP_LOGD(TAG, "- Report Size = %d", this->report_id);
+        ESP_LOGD(TAG, "- Report Size = %d", this->report_size);
         ESP_LOGD(TAG, "- Report Count = %d", this->report_count);
         ESP_LOGD(TAG, "- Report Offset = %d", this->report_offset);
         ESP_LOGD(TAG, "- Logical Range = %d..%d", this->logical_range.minimum, this->logical_range.maximum);
