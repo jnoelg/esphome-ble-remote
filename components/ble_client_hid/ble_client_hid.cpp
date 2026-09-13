@@ -38,6 +38,9 @@ void BLEClientHID::loop() {
         this->node_state = espbt::ClientState::ESTABLISHED;
         break;
       }
+      ESP_LOGI(TAG, "Requesting conn params update: interval=%.2f - %.2f ms, latency=%u, timeout=%.1f ms",
+               this->preferred_conn_params.min_int * 1.25f, this->preferred_conn_params.max_int * 1.25f,
+               this->preferred_conn_params.latency, this->preferred_conn_params.timeout * 10.f);
       esp_err_t ret = esp_ble_gap_update_conn_params(&this->preferred_conn_params);
       if (ret != ESP_OK) {
         ESP_LOGW(TAG, "esp_ble_gap_update_conn_params failed with status=%d, keeping current ones", ret);
@@ -242,9 +245,22 @@ void BLEClientHID::gattc_event_handler(esp_gattc_cb_event_t event,
       break;
     }
     case ESP_GATTC_REG_FOR_NOTIFY_EVT: {
-      if (param->notify.conn_id != this->parent()->get_conn_id()) break;
+      // This event carries no conn_id (only status and handle); the client
+      // is bound to a single remote address, so no filtering is needed.
+      if (param->reg_for_notify.status != ESP_GATT_OK) {
+        ESP_LOGW(TAG, "Register for notify failed for handle %d with status=%d",
+                 param->reg_for_notify.handle, param->reg_for_notify.status);
+      }
+      if (this->handles_waiting_for_notify_registration == 0) {
+        ESP_LOGW(TAG, "Unexpected REG_FOR_NOTIFY event for handle %d, ignoring",
+                 param->reg_for_notify.handle);
+        break;
+      }
       this->handles_waiting_for_notify_registration--;
-      if(this->handles_waiting_for_notify_registration == 0){
+      ESP_LOGD(TAG, "Notify registered for handle %d, %u remaining",
+               param->reg_for_notify.handle,
+               this->handles_waiting_for_notify_registration);
+      if (this->handles_waiting_for_notify_registration == 0) {
         this->hid_state = HIDState::NOTIFICATIONS_REGISTERED;
       }
       break;
