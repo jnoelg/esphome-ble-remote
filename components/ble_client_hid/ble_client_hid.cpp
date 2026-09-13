@@ -22,10 +22,30 @@ void BLEClientHID::loop() {
       break;
     case HIDState::READ_CHARS:
       this->configure_hid_client();
-      this->hid_state = HIDState::NOTIFICATIONS_REGISTERING;
-    case HIDState::NOTIFICATIONS_REGISTERED:
-      esp_ble_gap_update_conn_params(&this->preferred_conn_params);
+      if (this->handles_waiting_for_notify_registration == 0) {
+        // nothing to wait for (e.g. all registrations failed)
+        this->hid_state = HIDState::NOTIFICATIONS_REGISTERED;
+      } else {
+        this->hid_state = HIDState::NOTIFICATIONS_REGISTERING;
+      }
+      break;
+    case HIDState::NOTIFICATIONS_REGISTERED: {
+      if (!this->preferred_conn_params_valid) {
+        ESP_LOGD(TAG, "No usable preferred connection parameters, keeping current ones");
+        this->hid_state = HIDState::CONFIGURED;
+        this->node_state = espbt::ClientState::ESTABLISHED;
+        break;
+      }
+      esp_err_t ret = esp_ble_gap_update_conn_params(&this->preferred_conn_params);
+      if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "esp_ble_gap_update_conn_params failed with status=%d, keeping current ones", ret);
+        this->hid_state = HIDState::CONFIGURED;
+        this->node_state = espbt::ClientState::ESTABLISHED;
+        break;
+      }
       this->hid_state = HIDState::CONN_PARAMS_UPDATING;
+      break;
+    }
     default:
       break;
   }
@@ -42,10 +62,17 @@ void BLEClientHID::gap_event_handler(esp_gap_ble_cb_event_t event,
    switch (event)
    {
    case ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT:
-    ESP_LOGI(TAG, "Updated conn params to interval=%.2f ms, latency=%u, timeout=%.1f ms", param->update_conn_params.conn_int * 1.25f, param->update_conn_params.latency, param->update_conn_params.timeout * 10.f);
-    this->hid_state = HIDState::CONFIGURED;
-    this->node_state = espbt::ClientState::ESTABLISHED;
-    /* code */
+    if (memcmp(param->update_conn_params.bda, this->parent()->get_remote_bda(), sizeof(esp_bd_addr_t)) != 0) break;
+    if (param->update_conn_params.status != ESP_BT_STATUS_SUCCESS) {
+      ESP_LOGW(TAG, "Conn params update failed with status=%d", param->update_conn_params.status);
+    } else {
+      ESP_LOGI(TAG, "Updated conn params to interval=%.2f ms, latency=%u, timeout=%.1f ms", param->update_conn_params.conn_int * 1.25f, param->update_conn_params.latency, param->update_conn_params.timeout * 10.f);
+    }
+    if (this->hid_state == HIDState::CONN_PARAMS_UPDATING) {
+      // whatever the outcome, the link is usable
+      this->hid_state = HIDState::CONFIGURED;
+      this->node_state = espbt::ClientState::ESTABLISHED;
+    }
      break;
    default:
      break;
@@ -149,7 +176,8 @@ void BLEClientHID::gattc_event_handler(esp_gattc_cb_event_t event,
     case ESP_GATTC_DISCONNECT_EVT: {
       ESP_LOGW(TAG, "[%s] Disconnected!",
                this->parent()->address_str());
-      this->status_set_warning("Diconnected");
+      this->status_set_warning("Disconnected");
+      this->reset_connection_state();
       break;
     }
     case ESP_GATTC_SEARCH_RES_EVT: {
@@ -229,9 +257,18 @@ void BLEClientHID::send_input_report_event(esp_ble_gattc_cb_param_t *p_data) {
   ESP_LOGD(TAG, "Received HID input report from handle %d (length=%d)",
            p_data->notify.handle, p_data->notify.value_len);
   // esp_log_buffer_hex(TAG, p_data->notify.value, p_data->notify.value_len);
+  if (this->hid_report_map == nullptr) {
+    ESP_LOGW(TAG, "Received HID input report before report map was parsed, ignoring");
+    return;
+  }
+  auto report_id_it = this->handle_report_id.find(p_data->notify.handle);
+  if (report_id_it == this->handle_report_id.end()) {
+    ESP_LOGW(TAG, "Received HID input report from unknown handle %d, ignoring", p_data->notify.handle);
+    return;
+  }
   uint8_t *data = new uint8_t[p_data->notify.value_len + 1];
   memcpy(data + 1, p_data->notify.value, p_data->notify.value_len);
-  data[0] = this->handle_report_id[p_data->notify.handle];
+  data[0] = report_id_it->second;
   std::vector<HIDReportItemValue> hid_report_values =
       this->hid_report_map->parse(data);
   if (hid_report_values.size() == 0) {
@@ -397,6 +434,7 @@ void BLEClientHID::configure_hid_client() {
     HIDReportMap::esp_logd_report_map(
         this->handles_to_read[hid_report_map_char->handle]->value_,
         this->handles_to_read[hid_report_map_char->handle]->value_len_);
+    delete this->hid_report_map;
     this->hid_report_map = HIDReportMap::parse_report_map_data(
         this->handles_to_read[hid_report_map_char->handle]->value_,
         this->handles_to_read[hid_report_map_char->handle]->value_len_);
@@ -419,9 +457,8 @@ void BLEClientHID::configure_hid_client() {
         BLEDescriptor *rpt_ref_desc =
             hid_char->get_descriptor(ESP_GATT_UUID_RPT_REF_DESCR);
         if (rpt_ref_desc != nullptr) {
-          handle_report_id.insert(std::make_pair(
-              hid_char->handle,
-              this->handles_to_read[rpt_ref_desc->handle]->value_[0]));
+          this->handle_report_id[hid_char->handle] =
+              this->handles_to_read[rpt_ref_desc->handle]->value_[0];
           ESP_LOGD(TAG, "Report ID for handle %d is %d", hid_char->handle,
                    this->handles_to_read[rpt_ref_desc->handle]->value_[0]);
         }
@@ -435,11 +472,66 @@ void BLEClientHID::configure_hid_client() {
       this->preferred_conn_params.max_int = t_conn_params[2] | (t_conn_params[3] << 8);
       this->preferred_conn_params.latency = t_conn_params[4] | (t_conn_params[5] << 8);
       this->preferred_conn_params.timeout = t_conn_params[6] | (t_conn_params[7] << 8);
-      memcpy(this->preferred_conn_params.bda, this->parent()->get_remote_bda(), 6);
-      ESP_LOGI(TAG, "Got preferred connection paramters: interval: %.2f - %.2f ms, latency: %u, timeout: %.1f ms", preferred_conn_params.min_int * 1.25f, preferred_conn_params.max_int * 1.25f, preferred_conn_params.latency, preferred_conn_params.timeout*10.f);
+      memcpy(this->preferred_conn_params.bda, this->parent()->get_remote_bda(), sizeof(esp_bd_addr_t));
+      ESP_LOGI(TAG, "Got preferred connection parameters: interval: %.2f - %.2f ms, latency: %u, timeout: %.1f ms", preferred_conn_params.min_int * 1.25f, preferred_conn_params.max_int * 1.25f, preferred_conn_params.latency, preferred_conn_params.timeout*10.f);
+      this->preferred_conn_params_valid = this->validate_preferred_conn_params();
     }
   }
   // delete read data:
+  for (auto &kv : this->handles_to_read) {
+    delete kv.second;
+  }
+  this->handles_to_read.clear();
+}
+
+bool BLEClientHID::validate_preferred_conn_params() {
+  // Limits from Bluetooth Core Spec Vol 3 Part C 12.3 / Vol 4 Part E 7.8.18.
+  // 0xFFFF means "no specific preference" for each field.
+  esp_ble_conn_update_params_t &p = this->preferred_conn_params;
+  if (p.min_int == 0xFFFF || p.max_int == 0xFFFF || p.timeout == 0xFFFF) {
+    ESP_LOGW(TAG, "Peripheral has no specific connection parameter preference, keeping current ones");
+    return false;
+  }
+  if (p.min_int < 0x0006 || p.max_int > 0x0C80 || p.min_int > p.max_int) {
+    ESP_LOGW(TAG, "Preferred connection interval out of range (%u - %u), keeping current ones", p.min_int, p.max_int);
+    return false;
+  }
+  if (p.timeout < 0x000A || p.timeout > 0x0C80) {
+    ESP_LOGW(TAG, "Preferred supervision timeout out of range (%u), keeping current ones", p.timeout);
+    return false;
+  }
+  if (p.latency > 0x01F3) {
+    ESP_LOGW(TAG, "Preferred slave latency out of range (%u), keeping current ones", p.latency);
+    return false;
+  }
+  // Spec requires: timeout (ms) > (1 + latency) * max_int (ms) * 2
+  // timeout is in 10 ms units, interval in 1.25 ms units, so in the same
+  // units: timeout * 8 > (1 + latency) * max_int * 2  <=>  timeout * 4 > (1 + latency) * max_int
+  uint32_t max_latency_plus_one = (uint32_t)p.timeout * 4 / p.max_int;
+  if (max_latency_plus_one <= 1) {
+    ESP_LOGW(TAG, "Preferred supervision timeout too short for interval, keeping current ones");
+    return false;
+  }
+  uint16_t max_latency = max_latency_plus_one - 1;
+  // keep some margin: a few missed connection events must not drop the link
+  if (max_latency > 0) max_latency -= 1;
+  if (p.latency > max_latency) {
+    ESP_LOGW(TAG, "Preferred slave latency %u too high for timeout %.1f ms, clamping to %u",
+             p.latency, p.timeout * 10.f, max_latency);
+    p.latency = max_latency;
+  }
+  return true;
+}
+
+void BLEClientHID::reset_connection_state() {
+  this->hid_state = HIDState::INIT;
+  this->handles_waiting_for_notify_registration = 0;
+  this->handle_report_id.clear();
+  this->battery_handle = 0;
+  this->preferred_conn_params = {0};
+  this->preferred_conn_params_valid = false;
+  delete this->hid_report_map;
+  this->hid_report_map = nullptr;
   for (auto &kv : this->handles_to_read) {
     delete kv.second;
   }

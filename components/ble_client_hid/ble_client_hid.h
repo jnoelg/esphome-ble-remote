@@ -81,11 +81,15 @@ class BLEClientHID : public Component, public ble_client::BLEClientNode {
   void register_last_event_value_sensor(sensor::Sensor *last_event_value_sensor);
   void register_battery_sensor(sensor::Sensor * battery_sensor);
   void configure_hid_client();
-  
+
  protected:
+  // Drop all per-connection state so a reconnect starts from scratch.
+  void reset_connection_state();
+  // Sanity-check the peripheral's preferred connection parameters.
+  bool validate_preferred_conn_params();
   void send_input_report_event(esp_ble_gattc_cb_param_t *p_data);
   uint8_t *parse_characteristic_data(ble_client::BLEService *service, uint16_t uuid);
-  HIDReportMap* hid_report_map;
+  HIDReportMap* hid_report_map = nullptr;
   std::vector<ble_client::BLECharacteristic *> characteristics;
   std::vector<uint16_t> handles_registered_for_notify;
   std::map<uint16_t, GATTReadData *> handles_to_read;
@@ -95,7 +99,7 @@ class BLEClientHID : public Component, public ble_client::BLEClientNode {
   sensor::Sensor *last_event_value_sensor = nullptr;
   sensor::Sensor *battery_sensor = nullptr;
   HIDState hid_state = HIDState::INIT;
-  uint16_t battery_handle;
+  uint16_t battery_handle = 0;
   uint16_t vendor_id;
   uint16_t product_id;
   uint16_t version;
@@ -105,6 +109,7 @@ class BLEClientHID : public Component, public ble_client::BLEClientNode {
   bool is_connected = false;
   uint8_t handles_waiting_for_notify_registration = 0;
   esp_ble_conn_update_params_t preferred_conn_params = {0};
+  bool preferred_conn_params_valid = false;
 };
 
 }  // namespace ble_client_hid
