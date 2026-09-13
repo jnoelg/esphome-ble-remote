@@ -1,0 +1,16 @@
+# Normalize line endings: store as LF in the repo, check out per platform
+* text=auto
+
+# Always LF for source and generated code
+*.h    text eol=lf
+*.cpp  text eol=lf
+*.py   text eol=lf
+*.yaml text eol=lf
+*.yml  text eol=lf
+*.json text eol=lf
+*.md   text eol=lf
+
+# Binaries
+*.png  binary
+*.jpg  binary
+*.gif  binary
