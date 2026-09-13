@@ -15,6 +15,27 @@ static const std::string EMPTY = "";
 
 static TickType_t last_run = 0;
 
+// How long to wait after requesting a conn params update before reading the
+// live parameters back. ESPHome's esp32_ble component consumes
+// ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT itself (since 2026.x) and never forwards
+// it to client nodes, so gap_event_handler() below may never fire. The
+// peripheral applies (or rejects) the request within a handful of connection
+// events at the current interval, so 2 s is generous.
+static const uint32_t CONN_PARAMS_UPDATE_SETTLE_MS = 2000;
+
+void BLEClientHID::finish_conn_params_update(const char *reason) {
+  esp_gap_conn_params_t params;
+  esp_err_t ret = esp_ble_get_current_conn_params(this->parent()->get_remote_bda(), &params);
+  if (ret != ESP_OK) {
+    ESP_LOGW(TAG, "Conn params (%s): failed to read back current parameters, status=%d", reason, ret);
+  } else {
+    ESP_LOGI(TAG, "Conn params (%s): interval=%.2f ms, latency=%u, timeout=%.1f ms", reason,
+             params.interval * 1.25f, params.latency, params.timeout * 10.f);
+  }
+  this->hid_state = HIDState::CONFIGURED;
+  this->node_state = espbt::ClientState::ESTABLISHED;
+}
+
 void BLEClientHID::loop() {
   switch (this->hid_state) {
     case HIDState::BLE_CONNECTED:
@@ -48,9 +69,16 @@ void BLEClientHID::loop() {
         this->node_state = espbt::ClientState::ESTABLISHED;
         break;
       }
+      this->conn_params_update_requested_at = millis();
       this->hid_state = HIDState::CONN_PARAMS_UPDATING;
       break;
     }
+    case HIDState::CONN_PARAMS_UPDATING:
+      // Fallback when the GAP completion event never reaches us.
+      if (millis() - this->conn_params_update_requested_at >= CONN_PARAMS_UPDATE_SETTLE_MS) {
+        this->finish_conn_params_update("read back after update request");
+      }
+      break;
     default:
       break;
   }
@@ -75,8 +103,7 @@ void BLEClientHID::gap_event_handler(esp_gap_ble_cb_event_t event,
     }
     if (this->hid_state == HIDState::CONN_PARAMS_UPDATING) {
       // whatever the outcome, the link is usable
-      this->hid_state = HIDState::CONFIGURED;
-      this->node_state = espbt::ClientState::ESTABLISHED;
+      this->finish_conn_params_update("gap event");
     }
      break;
    default:
@@ -547,6 +574,7 @@ void BLEClientHID::reset_connection_state() {
   this->battery_handle = 0;
   this->preferred_conn_params = {0};
   this->preferred_conn_params_valid = false;
+  this->conn_params_update_requested_at = 0;
   delete this->hid_report_map;
   this->hid_report_map = nullptr;
   for (auto &kv : this->handles_to_read) {

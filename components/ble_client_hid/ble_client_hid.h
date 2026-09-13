@@ -87,6 +87,9 @@ class BLEClientHID : public Component, public ble_client::BLEClientNode {
   void reset_connection_state();
   // Sanity-check the peripheral's preferred connection parameters.
   bool validate_preferred_conn_params();
+  // Read back the live connection parameters, log them, and mark the node
+  // CONFIGURED / ESTABLISHED.
+  void finish_conn_params_update(const char *reason);
   void send_input_report_event(esp_ble_gattc_cb_param_t *p_data);
   uint8_t *parse_characteristic_data(ble_client::BLEService *service, uint16_t uuid);
   HIDReportMap* hid_report_map = nullptr;
@@ -110,6 +113,10 @@ class BLEClientHID : public Component, public ble_client::BLEClientNode {
   uint8_t handles_waiting_for_notify_registration = 0;
   esp_ble_conn_update_params_t preferred_conn_params = {0};
   bool preferred_conn_params_valid = false;
+  // millis() when the conn params update was requested; the GAP completion
+  // event is swallowed by esp32_ble on ESPHome >= 2026.x, so loop() falls
+  // back to reading the live parameters after a short wait.
+  uint32_t conn_params_update_requested_at = 0;
 };
 
 }  // namespace ble_client_hid
