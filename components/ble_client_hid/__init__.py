@@ -7,6 +7,7 @@ from esphome.const import CONF_ID
 
 
 DEPENDENCIES = ['ble_client']
+AUTO_LOAD = ["sensor", "text_sensor"]
 CODE_OWNERS=["@fsievers22"]
 
 MULTI_CONF=3
@@ -40,6 +41,10 @@ BLE_CLIENT_HID_SCHEMA = cv.Schema(
 async def register_last_event_usage_text_sensor(var, config):
     parent = await cg.get_variable(config[CONF_BLE_CLIENT_HID_ID])
     cg.add(parent.register_last_event_usage_text_sensor(var))
+
+async def register_last_event_code_text_sensor(var, config):
+    parent = await cg.get_variable(config[CONF_BLE_CLIENT_HID_ID])
+    cg.add(parent.register_last_event_code_text_sensor(var))
 
 async def register_last_event_value_sensor(var, config):
     parent = await cg.get_variable(config[CONF_BLE_CLIENT_HID_ID])

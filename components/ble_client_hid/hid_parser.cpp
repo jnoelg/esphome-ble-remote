@@ -120,7 +120,7 @@ namespace esphome
       if (index > this->usage_max.usage - this->usage_min.usage)
       {
         ESP_LOGW(TAG, "Usage index out of range");
-        return HIDUsage(0,0);
+        return HIDUsage(index,0);
       }
       return HIDUsage(this->usage_min.usage + index, this->usage_page);
     }
@@ -131,7 +131,7 @@ namespace esphome
       if (index > this->usages.size())
       {
         ESP_LOGW(TAG, "Usage index out of range");
-        return HIDUsage(0,0);
+        return HIDUsage(index,0);
       }
       return this->usages[index];
     }
@@ -388,7 +388,7 @@ namespace esphome
     void HIDInputReport::push_back(HIDInputReportItem *item)
     {
       this->items.push_back(item);
-      this->report_size += item->report_size;
+      this->report_size += item->get_total_size();
     }
 
     void HIDInputReport::esp_logd_input_report()
@@ -430,6 +430,11 @@ namespace esphome
         }
       }
       return report_values;
+    }
+
+    size_t HIDInputReportItem::get_total_size()
+    {
+      return this->report_size * this->report_count;
     }
 
     int32_t HIDInputReportItem::parse_input_report_item(uint8_t *report_data, uint16_t bit_offset, uint16_t report_size, HIDLogicalRange logical_range)
